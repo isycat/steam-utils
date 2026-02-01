@@ -35,6 +35,29 @@ object SteamInstallLocator {
         return parseSteamLibraryFoldersVdfLibraries(text)
     }
 
+    fun List<SteamLibrary>.forSteamAppId(appId: String) = firstOrNull { it.appIds.contains(appId) }
+
+    /**
+     * Searches for the installation directory of a specific application by app ID and subdirectory
+     * within a given file path.
+     *
+     * The method first looks for the application's installation path based on Steam library data
+     * from the provided directory. If no specific Steam library match is found, the search falls back
+     * to considering the provided directory itself as the potential root for the application directory.
+     *
+     * @param appId The unique application ID to locate within the Steam libraries. e.g. 570
+     * @param appDir The subdirectory name expected within the application installation directory.
+     *      e.g. "steamapps/common/dota 2 beta"
+     * @param filter A predicate to filter the application installation directory based on additional criteria
+     * @return The resolved application installation directory as a File if found, or null if no
+     * valid directory exists that matches the criteria.
+     */
+    fun File.findAppInstall(appId: String, appDir: String, filter: (File) -> Boolean = { true }): File? =
+        sequenceOf(findSteamLibrariesFromSteamRoot(this).forSteamAppId(appId)?.path, this)
+            .filterNotNull()
+            .map { it.resolve(appDir) }
+            .firstOrNull(filter)
+
     internal fun parseSteamLibraryFoldersVdf(vdfText: String): List<File> {
         return parseSteamLibraryFoldersVdfLibraries(vdfText).map { it.path }
     }
