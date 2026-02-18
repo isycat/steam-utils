@@ -1,9 +1,9 @@
 plugins {
-    kotlin("jvm") version "2.1.21"
+    kotlin("jvm")
     `maven-publish`
 }
 
-group = "com.github.isycat"
+group = "com.isycat.dotahalp"
 version = "1.0.0"
 
 dependencies {
@@ -28,7 +28,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "com.github.isycat"
             artifactId = "steam-utils"
-            version = project.version.toString()
+            version = "1.0.0"
             
             from(components["java"])
             
