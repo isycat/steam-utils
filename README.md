@@ -1,4 +1,4 @@
-# Steam Utils
+# `Steam Utils 0.0.1`
 
 Platform-agnostic utilities for locating Steam installations.
 
@@ -15,7 +15,7 @@ Platform-agnostic utilities for locating Steam installations.
 
 ```kotlin
 dependencies {
-    implementation("com.isycat:steam-utils:1.0.0")
+    implementation("com.isycat:steam-utils:0.0.1")
 }
 ```
 
