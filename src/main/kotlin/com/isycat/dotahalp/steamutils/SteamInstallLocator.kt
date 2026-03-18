@@ -1,28 +1,8 @@
 package com.isycat.dotahalp.steamutils
 
 import com.isycat.dotahalp.steamutils.SteamInstallLocator.findSteamLibraries
-import com.isycat.dotahalp.steamutils.SteamInstallLocator.forAppId
-import com.isycat.dotahalp.steamutils.SteamLibraryLocator.forAppId
 import java.io.File
 import java.nio.charset.StandardCharsets
-
-/**
- * A convenience wrapper around [SteamInstallLocator.libraries] that provides a simpler API.
- */
-object SteamLibraryLocator {
-    /**
-     * @see findSteamLibraries
-     */
-    @Suppress()
-    val paths: List<File> get() = SteamInstallLocator.libraries.map { it.path }
-    val libraries: List<SteamLibrary> get() = SteamInstallLocator.libraries
-
-    /**
-     * @see forAppId
-     */
-    @Suppress()
-    fun forAppId(appId: String) = SteamInstallLocator.libraries.forAppId(appId)
-}
 
 /**
  * Steam-specific install and library discovery utilities.
@@ -46,7 +26,9 @@ object SteamInstallLocator {
      * Locates the Steam libraries on the system.
      */
     @Suppress("unused", "MemberVisibilityCanBePrivate")
-    fun findSteamLibraries(): List<SteamLibrary> = findSteamInstallDir()?.let { findSteamLibrariesFromSteamRoot(it) } ?: emptyList()
+    fun findSteamLibraries(): List<SteamLibrary> =
+        findSteamInstallDir()?.let { findSteamLibrariesFromSteamRoot(it) }
+            ?: emptyList()
 
     /**
      * @see findSteamLibraries
@@ -100,7 +82,9 @@ object SteamInstallLocator {
         return parseSteamLibraryFoldersVdfLibraries(text)
     }
 
-    internal fun parseSteamLibraryFoldersVdf(vdfText: String): List<File> = parseSteamLibraryFoldersVdfLibraries(vdfText).map { it.path }
+    internal fun parseSteamLibraryFoldersVdf(vdfText: String): List<File> =
+        parseSteamLibraryFoldersVdfLibraries(vdfText)
+            .map { it.path }
 
     internal fun parseSteamLibraryFoldersVdfLibraries(vdfText: String): List<SteamLibrary> {
         // Steam's VDF / KeyValues is not JSON; it is brace-based with quoted tokens. (Valve KV?)
@@ -215,68 +199,4 @@ object SteamInstallLocator {
 
         return libraries
     }
-
-    private fun findSteamInstallDirWindows(): File? {
-        val candidates =
-            listOfNotNull(
-                readWindowsRegistryString(
-                    key = "HKCU\\Software\\Valve\\Steam",
-                    valueName = "SteamPath",
-                ),
-                readWindowsRegistryString(
-                    key = "HKLM\\Software\\WOW6432Node\\Valve\\Steam",
-                    valueName = "InstallPath",
-                ),
-                readWindowsRegistryString(
-                    key = "HKLM\\Software\\Valve\\Steam",
-                    valueName = "InstallPath",
-                ),
-            )
-
-        return candidates
-            .asSequence()
-            .map { it.trim().trimEnd('\\') }
-            .filter { it.isNotBlank() }
-            .map { File(it) }
-            .firstOrNull { it.isDirectory && File(it, "steam.exe").isFile }
-    }
-
-    private fun readWindowsRegistryString(
-        key: String,
-        valueName: String,
-    ): String? {
-        if (!isWindows()) {
-            return null
-        }
-
-        return try {
-            val process =
-                ProcessBuilder("reg", "query", key, "/v", valueName)
-                    .redirectErrorStream(true)
-                    .start()
-
-            val output = process.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
-            process.waitFor()
-
-            // Example line:
-            //    SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam
-            val line = output.lineSequence().firstOrNull { it.contains(valueName) } ?: return null
-            val parts = line.trim().split(Regex("\\s{2,}"))
-            parts.lastOrNull()
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun isWindows(): Boolean = OsMatcher.Windows matches osName
-
-    private val osName: String? by lazy { System.getProperty("os.name")?.lowercase() }
 }
-
-data class SteamLibrary(
-    val path: File,
-    val appIds: Set<String>,
-)
-
-@Suppress("unused", "MemberVisibilityCanBePrivate")
-fun SteamLibrary.dir(appDir: String) = path.resolve(appDir)
