@@ -4,7 +4,7 @@ Platform-agnostic utilities for locating Steam installations.
 
 ## Features
 
-- Automatically detect Steam installation directory on Windows, macOS, and Linux
+- Automatically detect Steam installation directory on Windows, ~~macOS~~ (soon), and ~~Linux~~ (soon)
 - Locate Steam library folders
 - Find game installation paths
 - Pure Kotlin implementation with no platform-specific dependencies
