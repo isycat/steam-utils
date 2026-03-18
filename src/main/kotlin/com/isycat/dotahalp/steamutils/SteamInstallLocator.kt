@@ -1,7 +1,28 @@
 package com.isycat.dotahalp.steamutils
 
+import com.isycat.dotahalp.steamutils.SteamInstallLocator.findSteamLibraries
+import com.isycat.dotahalp.steamutils.SteamInstallLocator.forAppId
+import com.isycat.dotahalp.steamutils.SteamLibraryLocator.forAppId
 import java.io.File
 import java.nio.charset.StandardCharsets
+
+/**
+ * A convenience wrapper around [SteamInstallLocator.libraries] that provides a simpler API.
+ */
+object SteamLibraryLocator {
+    /**
+     * @see findSteamLibraries
+     */
+    @Suppress()
+    val paths: List<File> get() = SteamInstallLocator.libraries.map { it.path }
+    val libraries: List<SteamLibrary> get() = SteamInstallLocator.libraries
+
+    /**
+     * @see forAppId
+     */
+    @Suppress()
+    fun forAppId(appId: String) = SteamInstallLocator.libraries.forAppId(appId)
+}
 
 /**
  * Steam-specific install and library discovery utilities.
@@ -9,33 +30,29 @@ import java.nio.charset.StandardCharsets
  * This currently only works on Windows. We should fix this.
  */
 object SteamInstallLocator {
-
-    data class SteamLibrary(
-        val path: File,
-        val appIds: Set<String>
-    )
-
-    fun findSteamInstallDir(): File? {
-        if (!isWindows()) {
-            return null
+    /**
+     * Locates the Steam installation directory
+     */
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    fun findSteamInstallDir(): File? =
+        when (val os = osName) {
+            in OsMatcher.Windows -> findSteamInstallDirWindows()
+            in OsMatcher.Linux -> null
+            in OsMatcher.Mac -> null
+            else -> null
         }
 
-        return findSteamInstallDirWindows()
-    }
+    /**
+     * Locates the Steam libraries on the system.
+     */
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    fun findSteamLibraries(): List<SteamLibrary> = findSteamInstallDir()?.let { findSteamLibrariesFromSteamRoot(it) } ?: emptyList()
 
-    fun findSteamLibrariesFromSteamRoot(steamRoot: File): List<SteamLibrary> {
-        val steamApps = File(steamRoot, "steamapps")
-        val libraryFolders = File(steamApps, "libraryfolders.vdf")
-
-        if (!libraryFolders.isFile) {
-            return emptyList()
-        }
-
-        val text = libraryFolders.readText(StandardCharsets.UTF_8)
-        return parseSteamLibraryFoldersVdfLibraries(text)
-    }
-
-    fun List<SteamLibrary>.forSteamAppId(appId: String) = firstOrNull { it.appIds.contains(appId) }
+    /**
+     * @see findSteamLibraries
+     */
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    val libraries: List<SteamLibrary> get() = findSteamLibraries()
 
     /**
      * Searches for the installation directory of a specific application by app ID and subdirectory
@@ -52,25 +69,48 @@ object SteamInstallLocator {
      * @return The resolved application installation directory as a File if found, or null if no
      * valid directory exists that matches the criteria.
      */
-    fun File.findAppInstall(appId: String, appDir: String, filter: (File) -> Boolean = { true }): File? =
-        sequenceOf(findSteamLibrariesFromSteamRoot(this).forSteamAppId(appId)?.path, this)
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    fun File.findAppInstall(
+        appId: String,
+        appDir: String,
+        filter: (File) -> Boolean = { true },
+    ): File? =
+        sequenceOf(findSteamLibrariesFromSteamRoot(this).forAppId(appId)?.path, this)
             .filterNotNull()
             .map { it.resolve(appDir) }
             .firstOrNull(filter)
 
-    internal fun parseSteamLibraryFoldersVdf(vdfText: String): List<File> {
-        return parseSteamLibraryFoldersVdfLibraries(vdfText).map { it.path }
+    /**
+     * Finds the Steam library for a given app ID.
+     * @param appId The Steam app ID to search for
+     * @return The Steam library directory as a SteamLibrary object if found, or null if not found
+     */
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    fun List<SteamLibrary>.forAppId(appId: String) = this.firstOrNull { appId in it.appIds }
+
+    private fun findSteamLibrariesFromSteamRoot(steamRoot: File): List<SteamLibrary> {
+        val steamApps = File(steamRoot, "steamapps")
+        val libraryFolders = File(steamApps, "libraryfolders.vdf")
+
+        if (!libraryFolders.isFile) {
+            return emptyList()
+        }
+
+        val text = libraryFolders.readText(StandardCharsets.UTF_8)
+        return parseSteamLibraryFoldersVdfLibraries(text)
     }
 
+    internal fun parseSteamLibraryFoldersVdf(vdfText: String): List<File> = parseSteamLibraryFoldersVdfLibraries(vdfText).map { it.path }
+
     internal fun parseSteamLibraryFoldersVdfLibraries(vdfText: String): List<SteamLibrary> {
-        // Steam's VDF / KeyValues is not strict JSON; it is brace-based with quoted tokens.
+        // Steam's VDF / KeyValues is not JSON; it is brace-based with quoted tokens. (Valve KV?)
         // We implement a small, tolerant line-based parser that captures:
         // - each library block's `path`
         // - app ids listed under its `apps` subsection
         data class LibraryBuilder(
             var path: File? = null,
             val appIds: MutableSet<String> = linkedSetOf(),
-            val startDepth: Int
+            val startDepth: Int,
         )
 
         val libraries = mutableListOf<SteamLibrary>()
@@ -83,10 +123,11 @@ object SteamInstallLocator {
         var appsStartDepth = -1
 
         fun normalizePath(raw: String): File? {
-            val unescaped = raw
-                .replace("\\\\", "\\")
-                .replace("/", "\\")
-                .trim()
+            val unescaped =
+                raw
+                    .replace("\\\\", "\\")
+                    .replace("/", "\\")
+                    .trim()
             return if (unescaped.isBlank()) null else File(unescaped)
         }
 
@@ -98,8 +139,8 @@ object SteamInstallLocator {
             }
         }
 
-        val keyOnlyRegex = Regex("^\\\"([^\\\"]+)\\\"$")
-        val kvRegex = Regex("^\\\"([^\\\"]+)\\\"\\s+\\\"([^\\\"]*)\\\"$")
+        val keyOnlyRegex = Regex("^\"([^\"]+)\"$")
+        val kvRegex = Regex("^\"([^\"]+)\"\\s+\"([^\"]*)\"$")
 
         for (rawLine in vdfText.lineSequence()) {
             val line = rawLine.trim()
@@ -176,20 +217,21 @@ object SteamInstallLocator {
     }
 
     private fun findSteamInstallDirWindows(): File? {
-        val candidates = listOfNotNull(
-            readWindowsRegistryString(
-                key = "HKCU\\Software\\Valve\\Steam",
-                valueName = "SteamPath"
-            ),
-            readWindowsRegistryString(
-                key = "HKLM\\Software\\WOW6432Node\\Valve\\Steam",
-                valueName = "InstallPath"
-            ),
-            readWindowsRegistryString(
-                key = "HKLM\\Software\\Valve\\Steam",
-                valueName = "InstallPath"
+        val candidates =
+            listOfNotNull(
+                readWindowsRegistryString(
+                    key = "HKCU\\Software\\Valve\\Steam",
+                    valueName = "SteamPath",
+                ),
+                readWindowsRegistryString(
+                    key = "HKLM\\Software\\WOW6432Node\\Valve\\Steam",
+                    valueName = "InstallPath",
+                ),
+                readWindowsRegistryString(
+                    key = "HKLM\\Software\\Valve\\Steam",
+                    valueName = "InstallPath",
+                ),
             )
-        )
 
         return candidates
             .asSequence()
@@ -199,15 +241,19 @@ object SteamInstallLocator {
             .firstOrNull { it.isDirectory && File(it, "steam.exe").isFile }
     }
 
-    private fun readWindowsRegistryString(key: String, valueName: String): String? {
+    private fun readWindowsRegistryString(
+        key: String,
+        valueName: String,
+    ): String? {
         if (!isWindows()) {
             return null
         }
 
         return try {
-            val process = ProcessBuilder("reg", "query", key, "/v", valueName)
-                .redirectErrorStream(true)
-                .start()
+            val process =
+                ProcessBuilder("reg", "query", key, "/v", valueName)
+                    .redirectErrorStream(true)
+                    .start()
 
             val output = process.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
             process.waitFor()
@@ -222,8 +268,15 @@ object SteamInstallLocator {
         }
     }
 
-    private fun isWindows(): Boolean {
-        val os = System.getProperty("os.name")?.lowercase() ?: return false
-        return os.contains("win")
-    }
+    private fun isWindows(): Boolean = OsMatcher.Windows matches osName
+
+    private val osName: String? by lazy { System.getProperty("os.name")?.lowercase() }
 }
+
+data class SteamLibrary(
+    val path: File,
+    val appIds: Set<String>,
+)
+
+@Suppress("unused", "MemberVisibilityCanBePrivate")
+fun SteamLibrary.dir(appDir: String) = path.resolve(appDir)

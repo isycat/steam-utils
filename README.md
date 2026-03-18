@@ -41,8 +41,7 @@ val steamDir = SteamInstallLocator.findSteamDirectory()
 println("Steam installed at: $steamDir")
 
 // Find a specific game
-val dotaDir = SteamInstallLocator.findSteamInstallDir()
-    ?.findAppInstall("570", "steamapps/common/dota 2 beta") // Dota 2 App ID: 570
+val dotaDir = SteamInstallLocator.libraries.forAppId("570")?.dir("steamapps/common/dota 2 beta")
 println("Dota 2 installed at: $dotaDir")
 ```
 Output: `Dota 2 installed at: D:\Games\Steam\steamapps\common\dota 2 beta`
