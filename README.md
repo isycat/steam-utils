@@ -13,33 +13,20 @@ Platform-agnostic utilities for locating Steam installations.
 
 ### Gradle
 
-Add JitPack repository to your `build.gradle.kts`:
-
 ```kotlin
-repositories {
-    maven("https://jitpack.io")
-}
-
 dependencies {
-    implementation("com.github.isycat:steam-utils:v1.0.0")
+    implementation("com.isycat:steam-utils:1.0.0")
 }
 ```
 
 ### Maven
 
 ```xml
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
-
 <dependencies>
     <dependency>
-        <groupId>com.github.isycat</groupId>
+        <groupId>com.isycat</groupId>
         <artifactId>steam-utils</artifactId>
-        <version>v1.0.0</version>
+        <version>1.0.0</version>
     </dependency>
 </dependencies>
 ```
