@@ -11,7 +11,7 @@ Platform-agnostic utilities for locating Steam installations.
 
 ## Installation
 
-### JitPack
+### Gradle
 
 Add JitPack repository to your `build.gradle.kts`:
 
