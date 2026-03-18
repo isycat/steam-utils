@@ -1,4 +1,4 @@
-# `Steam Utils 0.0.1`
+# `Steam Utils 0.0.2`
 
 Platform-agnostic utilities for locating Steam installations.
 
